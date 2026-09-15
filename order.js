@@ -1,6 +1,4 @@
-const { createClient } = supabase;
-
-const client = createClient(
+const client = supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 );
@@ -8,78 +6,32 @@ const client = createClient(
 const form = document.getElementById("order-form");
 const msg = document.getElementById("form-msg");
 
-function setFormMessage(text, error = false) {
-  if (!msg) return;
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
 
-  msg.textContent = text;
-  msg.classList.toggle("error", error);
-}
+  msg.textContent = "Sending order...";
 
-if (form) {
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
+  const payload = {
+    name: document.getElementById("order-name").value.trim(),
+    whatsapp: document.getElementById("order-whatsapp").value.trim(),
+    email: document.getElementById("order-email").value.trim() || null,
+    service: document.getElementById("order-service").value,
+    budget: document.getElementById("order-budget").value.trim() || null,
+    requirements: document.getElementById("order-requirements").value.trim(),
+    status: "New"
+  };
 
-    if (
-      !SUPABASE_URL ||
-      !SUPABASE_URL.startsWith("http") ||
-      !SUPABASE_ANON_KEY ||
-      SUPABASE_ANON_KEY.includes("YOUR_")
-    ) {
-      setFormMessage(
-        "The order system is not configured yet. Please try again later.",
-        true
-      );
-      return;
-    }
+  const result = await client
+    .from("orders")
+    .insert([payload]);
 
-    const button = form.querySelector('button[type="submit"]');
+  if (result.error) {
+    console.error("SUPABASE ERROR:", result.error);
 
-    if (button) {
-      button.disabled = true;
-    }
+    msg.textContent = "Error: " + result.error.message;
+    return;
+  }
 
-    setFormMessage("Sending your order…");
-
-    const payload = {
-      name: document.getElementById("order-name").value.trim(),
-      whatsapp: document.getElementById("order-whatsapp").value.trim(),
-      email:
-        document.getElementById("order-email").value.trim() || null,
-      service: document.getElementById("order-service").value,
-      budget:
-        document.getElementById("order-budget").value.trim() || null,
-      requirements: document
-        .getElementById("order-requirements")
-        .value.trim(),
-      status: "New"
-    };
-
-    const { data, error } = await client
-      .from("orders")
-      .insert([payload])
-      .select();
-
-    if (button) {
-      button.disabled = false;
-    }
-
-    if (error) {
-      console.error("Supabase order error:", error);
-
-      setFormMessage(
-        "Order could not be submitted. Please try again or contact us on WhatsApp.",
-        true
-      );
-
-      return;
-    }
-
-    form.reset();
-
-    setFormMessage(
-      "Order received! Nexvision will contact you soon. ✓"
-    );
-
-    console.log("Order saved successfully:", data);
-  });
-}
+  form.reset();
+  msg.textContent = "Order saved successfully!";
+});
